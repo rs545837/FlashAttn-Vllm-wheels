@@ -77,11 +77,25 @@ function populateFilters() {
   platformSelect.value = filters.platform;
 }
 
+// Check if Python version matches (handles "3.8+" style versions)
+function pythonMatches(wheelPy, filterPy) {
+  if (filterPy === 'all') return true;
+  if (wheelPy === filterPy) return true;
+
+  // Handle "3.8+" style - matches any version >= 3.8
+  if (wheelPy.endsWith('+')) {
+    const minVersion = parseFloat(wheelPy.replace('+', ''));
+    const filterVersion = parseFloat(filterPy);
+    return !isNaN(filterVersion) && filterVersion >= minVersion;
+  }
+  return false;
+}
+
 // Filter wheels
 function filterWheels() {
   return getWheels().filter(w => {
     if (filters.cuda !== 'all' && w.cuda !== filters.cuda) return false;
-    if (filters.python !== 'all' && w.py !== filters.python) return false;
+    if (!pythonMatches(w.py, filters.python)) return false;
     if (currentLibrary === 'flash-attn' && filters.pytorch !== 'all' && w.torch !== filters.pytorch) return false;
     if (filters.platform !== 'all' && w.os !== filters.platform) return false;
     if (searchQuery) {
