@@ -52,7 +52,21 @@ function populateFilters() {
     cudaSelect.innerHTML += `<option value="${v}">${v}</option>`;
   });
 
-  getUnique('py').forEach(v => {
+  // For vLLM, show specific Python versions instead of "3.8+"
+  let pyVersions = getUnique('py');
+  if (currentLibrary === 'vllm') {
+    // Remove "3.8+" and add specific versions if not already present
+    const hasPlus = pyVersions.some(v => v.endsWith('+'));
+    if (hasPlus) {
+      pyVersions = pyVersions.filter(v => !v.endsWith('+'));
+      ['3.12', '3.11', '3.10', '3.9', '3.8'].forEach(v => {
+        if (!pyVersions.includes(v)) pyVersions.push(v);
+      });
+      // Sort descending
+      pyVersions.sort((a, b) => comparePyVersion(b, a));
+    }
+  }
+  pyVersions.forEach(v => {
     pythonSelect.innerHTML += `<option value="${v}">${v}</option>`;
   });
 
