@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flash Attention Wheels</title>
-  <meta name="description" content="Pre-built wheels for Flash Attention 2 & 3. Skip compilation, install in seconds.">
+  <title>ML Wheels</title>
+  <meta name="description" content="Pre-built wheels for Flash Attention & vLLM. Skip compilation, install in seconds.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -401,12 +401,17 @@
 <body>
   <div class="container">
     <header>
-      <h1>Flash Attention Wheels</h1>
-      <p class="tagline">Pre-built wheels for Flash Attention 2 & 3. Skip the 30+ minute compilation.</p>
+      <h1>ML Wheels</h1>
+      <p class="tagline">Pre-built wheels for Flash Attention & vLLM. Skip the compilation.</p>
     </header>
 
     <main>
-      <div class="version-toggle">
+      <div class="version-toggle" id="library-toggle">
+        <button class="version-btn active" data-library="flash-attn">Flash Attention</button>
+        <button class="version-btn" data-library="vllm">vLLM</button>
+      </div>
+
+      <div class="version-toggle" id="version-toggle">
         <button class="version-btn active" data-version="all">All</button>
         <button class="version-btn" data-version="2">v2</button>
         <button class="version-btn" data-version="3">v3</button>
@@ -457,16 +462,19 @@
 
     <footer>
       <p class="sources">Sources</p>
-      <div class="source-links">
+      <div class="source-links" id="source-links">
         <a href="https://flashattn.dev/" target="_blank">flashattn.dev</a>
         <a href="https://windreamer.github.io/flash-attention3-wheels/" target="_blank">Flash Attn 3 Wheels</a>
         <a href="https://github.com/mjun0812/flash-attention-prebuild-wheels" target="_blank">mjun0812/prebuild-wheels</a>
         <a href="https://github.com/Dao-AILab/flash-attention" target="_blank">Dao-AILab/flash-attention</a>
+        <a href="https://github.com/vllm-project/vllm/releases" target="_blank">vLLM Releases</a>
+        <a href="https://docs.vllm.ai/" target="_blank">vLLM Docs</a>
       </div>
     </footer>
   </div>
 
   <script src="wheels.js"></script>
+  <script src="vllm-wheels.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 // State
+let currentLibrary = 'flash-attn';
 let currentVersion = 'all';
 let filters = { cuda: 'all', python: 'all', pytorch: 'all', platform: 'all' };
 let searchQuery = '';
@@ -10,8 +11,12 @@ const platformLabels = {
   win_amd64: 'Windows'
 };
 
-// Get current wheels based on version filter
+// Get current wheels based on library and version filter
 function getWheels() {
+  if (currentLibrary === 'vllm') {
+    return vllmWheels;
+  }
+  // Flash Attention
   if (currentVersion === '2') return flashAttn2;
   if (currentVersion === '3') return flashAttn3;
   return [...flashAttn2, ...flashAttn3];
@@ -20,8 +25,16 @@ function getWheels() {
 // Get unique sorted values
 function getUnique(key) {
   const wheels = getWheels();
-  const values = [...new Set(wheels.map(w => w[key]))];
-  return values.sort((a, b) => parseFloat(b) - parseFloat(a));
+  const values = [...new Set(wheels.map(w => w[key]).filter(Boolean))];
+  return values.sort((a, b) => {
+    // Handle version sorting (numbers with dots)
+    const aNum = parseFloat(a);
+    const bNum = parseFloat(b);
+    if (!isNaN(aNum) && !isNaN(bNum)) {
+      return bNum - aNum;
+    }
+    return String(a).localeCompare(String(b));
+  });
 }
 
 // Populate filter dropdowns
@@ -44,9 +57,16 @@ function populateFilters() {
     pythonSelect.innerHTML += `<option value="${v}">${v}</option>`;
   });
 
-  getUnique('torch').forEach(v => {
-    pytorchSelect.innerHTML += `<option value="${v}">${v}</option>`;
-  });
+  // Only show PyTorch filter for Flash Attention
+  const pytorchGroup = pytorchSelect.closest('.filter-group');
+  if (currentLibrary === 'vllm') {
+    pytorchGroup.style.display = 'none';
+  } else {
+    pytorchGroup.style.display = 'block';
+    getUnique('torch').forEach(v => {
+      pytorchSelect.innerHTML += `<option value="${v}">${v}</option>`;
+    });
+  }
 
   getUnique('os').forEach(v => {
     platformSelect.innerHTML += `<option value="${v}">${platformLabels[v] || v}</option>`;
@@ -63,12 +83,12 @@ function filterWheels() {
   return getWheels().filter(w => {
     if (filters.cuda !== 'all' && w.cuda !== filters.cuda) return false;
     if (filters.python !== 'all' && w.py !== filters.python) return false;
-    if (filters.pytorch !== 'all' && w.torch !== filters.pytorch) return false;
+    if (currentLibrary === 'flash-attn' && filters.pytorch !== 'all' && w.torch !== filters.pytorch) return false;
     if (filters.platform !== 'all' && w.os !== filters.platform) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return w.v.includes(q) || w.cuda.includes(q) || w.py.includes(q) ||
-             w.torch.includes(q) || w.os.toLowerCase().includes(q);
+      const searchStr = `${w.v} ${w.cuda} ${w.py} ${w.torch || ''} ${w.os}`.toLowerCase();
+      return searchStr.includes(q);
     }
     return true;
   });
@@ -76,18 +96,22 @@ function filterWheels() {
 
 // Render wheel card
 function renderWheel(wheel) {
-  const isV3 = wheel.v.startsWith('3');
   const pipCmd = `pip install ${wheel.url}`;
   const uvCmd = `uv pip install ${wheel.url}`;
+
+  // Build badges
+  let badgesHtml = `<span class="badge badge-version">v${wheel.v}</span>`;
+  badgesHtml += `<span class="badge">CUDA ${wheel.cuda}</span>`;
+  if (wheel.torch) {
+    badgesHtml += `<span class="badge">PyTorch ${wheel.torch}</span>`;
+  }
+  badgesHtml += `<span class="badge">Python ${wheel.py}</span>`;
+  badgesHtml += `<span class="badge">${platformLabels[wheel.os] || wheel.os}</span>`;
 
   return `
     <div class="wheel-card">
       <div class="wheel-header">
-        <span class="badge badge-version">v${wheel.v}</span>
-        <span class="badge">CUDA ${wheel.cuda}</span>
-        <span class="badge">PyTorch ${wheel.torch}</span>
-        <span class="badge">Python ${wheel.py}</span>
-        <span class="badge">${platformLabels[wheel.os] || wheel.os}</span>
+        ${badgesHtml}
       </div>
 
       <div class="command-group">
@@ -154,6 +178,16 @@ function render() {
   list.innerHTML = wheels.map(renderWheel).join('');
 }
 
+// Update version toggle visibility
+function updateVersionToggle() {
+  const versionToggle = document.getElementById('version-toggle');
+  if (currentLibrary === 'vllm') {
+    versionToggle.style.display = 'none';
+  } else {
+    versionToggle.style.display = 'flex';
+  }
+}
+
 // Copy command to clipboard
 async function copyCmd(btn, cmd) {
   await navigator.clipboard.writeText(cmd);
@@ -186,12 +220,30 @@ function clearFilters() {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   populateFilters();
+  updateVersionToggle();
   render();
 
-  // Version toggle
-  document.querySelectorAll('.version-btn').forEach(btn => {
+  // Library toggle
+  document.querySelectorAll('#library-toggle .version-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.version-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#library-toggle .version-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentLibrary = btn.dataset.library;
+      currentVersion = 'all';
+      // Reset version toggle
+      document.querySelectorAll('#version-toggle .version-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('#version-toggle .version-btn[data-version="all"]').classList.add('active');
+      filters = { cuda: 'all', python: 'all', pytorch: 'all', platform: 'all' };
+      updateVersionToggle();
+      populateFilters();
+      render();
+    });
+  });
+
+  // Version toggle (Flash Attention only)
+  document.querySelectorAll('#version-toggle .version-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#version-toggle .version-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentVersion = btn.dataset.version;
       populateFilters();
