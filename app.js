@@ -14,12 +14,12 @@ const platformLabels = {
 // Get current wheels based on library and version filter
 function getWheels() {
   if (currentLibrary === 'vllm') {
-    return vllmWheels;
+    return vllmWheels || [];
   }
   // Flash Attention
-  if (currentVersion === '2') return flashAttn2;
-  if (currentVersion === '3') return flashAttn3;
-  return [...flashAttn2, ...flashAttn3];
+  if (currentVersion === '2') return flashAttn2 || [];
+  if (currentVersion === '3') return flashAttn3 || [];
+  return [...(flashAttn2 || []), ...(flashAttn3 || [])];
 }
 
 // Get unique sorted values
@@ -27,7 +27,6 @@ function getUnique(key) {
   const wheels = getWheels();
   const values = [...new Set(wheels.map(w => w[key]).filter(Boolean))];
   return values.sort((a, b) => {
-    // Handle version sorting (numbers with dots)
     const aNum = parseFloat(a);
     const bNum = parseFloat(b);
     if (!isNaN(aNum) && !isNaN(bNum)) {
@@ -99,7 +98,6 @@ function renderWheel(wheel) {
   const pipCmd = `pip install ${wheel.url}`;
   const uvCmd = `uv pip install ${wheel.url}`;
 
-  // Build badges
   let badgesHtml = `<span class="badge badge-version">v${wheel.v}</span>`;
   badgesHtml += `<span class="badge">CUDA ${wheel.cuda}</span>`;
   if (wheel.torch) {
@@ -188,6 +186,39 @@ function updateVersionToggle() {
   }
 }
 
+// Switch library
+function switchLibrary(lib) {
+  currentLibrary = lib;
+  currentVersion = 'all';
+  filters = { cuda: 'all', python: 'all', pytorch: 'all', platform: 'all' };
+
+  // Update library buttons
+  document.querySelectorAll('#library-toggle .version-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-library') === lib);
+  });
+
+  // Reset version buttons
+  document.querySelectorAll('#version-toggle .version-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-version') === 'all');
+  });
+
+  updateVersionToggle();
+  populateFilters();
+  render();
+}
+
+// Switch version
+function switchVersion(ver) {
+  currentVersion = ver;
+
+  document.querySelectorAll('#version-toggle .version-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-version') === ver);
+  });
+
+  populateFilters();
+  render();
+}
+
 // Copy command to clipboard
 async function copyCmd(btn, cmd) {
   await navigator.clipboard.writeText(cmd);
@@ -223,58 +254,46 @@ document.addEventListener('DOMContentLoaded', () => {
   updateVersionToggle();
   render();
 
-  // Library toggle
+  // Library toggle - use onclick directly
   document.querySelectorAll('#library-toggle .version-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#library-toggle .version-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentLibrary = btn.dataset.library;
-      currentVersion = 'all';
-      // Reset version toggle
-      document.querySelectorAll('#version-toggle .version-btn').forEach(b => b.classList.remove('active'));
-      document.querySelector('#version-toggle .version-btn[data-version="all"]').classList.add('active');
-      filters = { cuda: 'all', python: 'all', pytorch: 'all', platform: 'all' };
-      updateVersionToggle();
-      populateFilters();
-      render();
-    });
+    btn.onclick = function() {
+      const lib = this.getAttribute('data-library');
+      switchLibrary(lib);
+    };
   });
 
-  // Version toggle (Flash Attention only)
+  // Version toggle
   document.querySelectorAll('#version-toggle .version-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#version-toggle .version-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentVersion = btn.dataset.version;
-      populateFilters();
-      render();
-    });
+    btn.onclick = function() {
+      const ver = this.getAttribute('data-version');
+      switchVersion(ver);
+    };
   });
 
   // Search
-  document.getElementById('search').addEventListener('input', (e) => {
-    searchQuery = e.target.value;
+  document.getElementById('search').oninput = function() {
+    searchQuery = this.value;
     render();
-  });
+  };
 
   // Filters
-  document.getElementById('cuda-filter').addEventListener('change', (e) => {
-    filters.cuda = e.target.value;
+  document.getElementById('cuda-filter').onchange = function() {
+    filters.cuda = this.value;
     render();
-  });
+  };
 
-  document.getElementById('python-filter').addEventListener('change', (e) => {
-    filters.python = e.target.value;
+  document.getElementById('python-filter').onchange = function() {
+    filters.python = this.value;
     render();
-  });
+  };
 
-  document.getElementById('pytorch-filter').addEventListener('change', (e) => {
-    filters.pytorch = e.target.value;
+  document.getElementById('pytorch-filter').onchange = function() {
+    filters.pytorch = this.value;
     render();
-  });
+  };
 
-  document.getElementById('platform-filter').addEventListener('change', (e) => {
-    filters.platform = e.target.value;
+  document.getElementById('platform-filter').onchange = function() {
+    filters.platform = this.value;
     render();
-  });
+  };
 });
